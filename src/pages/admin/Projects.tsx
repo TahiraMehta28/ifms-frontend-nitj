@@ -108,7 +108,7 @@ const ModernManageProjects = () => {
   const calcRemaining = (project) => {
     const released = parseFloat(project.totalReleasedAmount || 0);
     const booked   = parseFloat(project.amountBookedByPI    || 0);
-    const actual   = parseFloat(project.actualExpenditure   || 0);
+    const actual   = parseFloat(project.actual_exp   || 0);
     return Math.max(0, released - booked + Math.max(0, booked - actual));
   };
 
@@ -251,7 +251,7 @@ const ModernManageProjects = () => {
                           department:          project.department,
                           totalReleasedAmount: parseFloat(project.totalReleasedAmount || 0),
                           amountBookedByPI:    parseFloat(project.amountBookedByPI    || 0),
-                          actualExpenditure:   parseFloat(project.actualExpenditure   || 0),
+                          actual_exp:   parseFloat(project.actual_exp   || 0),
                           availableBalance:    remaining,
                           heads:               project.heads || [],
                         };
@@ -265,7 +265,7 @@ const ModernManageProjects = () => {
                           totalSanctionedAmount:  parseFloat(project.totalSanctionedAmount  || 0),
                           totalReleasedAmount:    parseFloat(project.totalReleasedAmount     || 0),
                           amountBookedByPI:       parseFloat(project.amountBookedByPI        || 0),
-                          actualExpenditure:      parseFloat(project.actualExpenditure        || 0),
+                          actual_exp:      parseFloat(project.actual_exp        || 0),
                           expenditureComplete:    project.expenditureComplete,
                           approvedRequestCount:   project.approvedRequestCount,
                           filledExpenditureCount: project.filledExpenditureCount,

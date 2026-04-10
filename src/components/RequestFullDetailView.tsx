@@ -4,17 +4,28 @@
 // ✅ Point 7(b) expenditure — editable by AR and DR only
 // ✅ Point 8    mode        — editable by DRC R&C and DRC only
 // ✅ Live local state updates immediately after save (no full re-fetch needed)
+// ✅ Dynamic approval timeline from approval_history
 
 import { useState, useEffect } from "react";
 import {
   FileText, Eye, ExternalLink, Pencil, Lock, CheckCircle2,
-  AlertTriangle, ChevronDown, ChevronUp,
+  AlertTriangle, ChevronDown, ChevronUp, Clock, CheckCircle, ArrowLeftRight, MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 const API = import.meta.env.VITE_API_URL;
+
+export interface HistoryEntry {
+  id?: number;
+  stage: string;
+  action: string;
+  by: string;
+  timestamp: string;
+  remarks?: string;
+  approvalType?: string;
+}
 
 export interface RequestDetailData {
   id: string;
@@ -44,6 +55,7 @@ export interface RequestDetailData {
   drcRcRemarks?: string;
   drcRemarks?: string;
   directorRemarks?: string;
+  history?: HistoryEntry[];
   latestQuery?: {
     query: string; raisedBy: string; raisedByLabel?: string;
     raisedAt?: string; resolved: boolean; piResponse?: string;
@@ -145,15 +157,19 @@ export const RequestFullDetail = ({ request, viewerStage, onFieldSaved }: Props)
     finally { setSavingP8(false); }
   };
 
-  const remarksList = [
-    { label: "DA Remarks",         value: request.daRemarks,        cls: "bg-blue-50 border-blue-200 text-blue-700" },
-    { label: "AR Remarks",         value: request.arRemarks,        cls: "bg-sky-50 border-sky-200 text-sky-700" },
-    { label: "DR Remarks",         value: request.drRemarks,        cls: "bg-purple-50 border-purple-200 text-purple-700" },
-    { label: "DRC Office Remarks", value: request.drcOfficeRemarks, cls: "bg-cyan-50 border-cyan-200 text-cyan-700" },
-    { label: "DR (R&C) Remarks",  value: request.drcRcRemarks,     cls: "bg-teal-50 border-teal-200 text-teal-700" },
-    { label: "DRC Remarks",        value: request.drcRemarks,       cls: "bg-indigo-50 border-indigo-200 text-indigo-700" },
-    { label: "Director Remarks",   value: request.directorRemarks,  cls: "bg-violet-50 border-violet-200 text-violet-700" },
-  ].filter(r => r.value?.trim());
+  const stageLabel: Record<string, string> = {
+    da: "DA", ar: "AR", dr: "DR", drc_office: "DRC Office",
+    drc_rc: "DR (R&C)", drc: "DRC", director: "Director", pi: "PI",
+  };
+
+  const actionMeta = (action: string) => {
+    if (action === "approved" || action === "forwarded") return { icon: CheckCircle, color: "text-green-600", bg: "bg-green-50 border-green-200" };
+    if (action === "sent_back" || action === "sendback") return { icon: ArrowLeftRight, color: "text-amber-600", bg: "bg-amber-50 border-amber-200" };
+    if (action === "rejected") return { icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50 border-red-200" };
+    if (action === "query") return { icon: MessageSquare, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" };
+    if (action === "resolved") return { icon: CheckCircle2, color: "text-teal-600", bg: "bg-teal-50 border-teal-200" };
+    return { icon: Clock, color: "text-slate-500", bg: "bg-slate-50 border-slate-200" };
+  };
 
   return (
     <div className="space-y-4">
@@ -383,11 +399,53 @@ export const RequestFullDetail = ({ request, viewerStage, onFieldSaved }: Props)
             </div>
           </div>
 
-          {/* Remarks chain */}
-          {remarksList.length > 0 && (
+          {/* Approval Timeline */}
+          {(request.history && request.history.length > 0) ? (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-1">Remarks from each stage</p>
-              {remarksList.map(({ label, value, cls }) => (
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-1">📋 Approval Timeline</p>
+              <div className="relative pl-5 border-l-2 border-slate-200 space-y-3 ml-2">
+                {request.history.map((entry, idx) => {
+                  const meta = actionMeta(entry.action);
+                  const Icon = meta.icon;
+                  const actionText = entry.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                  const stageText = stageLabel[entry.stage] || entry.stage.toUpperCase();
+                  return (
+                    <div key={idx} className={`relative -ml-5 pl-7`}>
+                      <span className={`absolute left-0 top-2.5 flex items-center justify-center w-5 h-5 rounded-full border ${meta.bg} ${meta.color}`}>
+                        <Icon className="w-3 h-3" />
+                      </span>
+                      <div className={`p-2.5 rounded-lg border text-xs ${meta.bg}`}>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className={`font-bold ${meta.color}`}>{stageText}: {actionText}</span>
+                          <span className="text-slate-400 text-[10px]">
+                            {entry.timestamp ? new Date(entry.timestamp).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                          </span>
+                        </div>
+                        <p className="text-slate-500">By: <span className="font-medium text-slate-700">{entry.by}</span></p>
+                        {entry.remarks?.trim() && (
+                          <p className="mt-1 text-slate-700 italic">"{entry.remarks}"</p>
+                        )}
+                        {entry.approvalType && (
+                          <p className="mt-1 text-[10px] text-slate-500">Approval Type: <strong>{entry.approvalType === 'admin' ? 'Admin Approval' : 'Admin cum Financial Approval'}</strong></p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            // Fallback: static remarks if no history yet
+            <div className="space-y-2">
+              {[
+                { label: "DA Remarks", value: request.daRemarks, cls: "bg-blue-50 border-blue-200 text-blue-700" },
+                { label: "AR Remarks", value: request.arRemarks, cls: "bg-sky-50 border-sky-200 text-sky-700" },
+                { label: "DR Remarks", value: request.drRemarks, cls: "bg-purple-50 border-purple-200 text-purple-700" },
+                { label: "DRC Office Remarks", value: request.drcOfficeRemarks, cls: "bg-cyan-50 border-cyan-200 text-cyan-700" },
+                { label: "DR (R&C) Remarks", value: request.drcRcRemarks, cls: "bg-teal-50 border-teal-200 text-teal-700" },
+                { label: "DRC Remarks", value: request.drcRemarks, cls: "bg-indigo-50 border-indigo-200 text-indigo-700" },
+                { label: "Director Remarks", value: request.directorRemarks, cls: "bg-violet-50 border-violet-200 text-violet-700" },
+              ].filter(r => r.value?.trim()).map(({ label, value, cls }) => (
                 <div key={label} className={`p-3 rounded-lg border ${cls}`}>
                   <p className="text-xs font-semibold mb-1">{label}:</p>
                   <p className="text-sm text-slate-700">{value}</p>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -323,7 +323,10 @@ const ReleaseFundsHeadwise = ({ open, onClose, project, onSuccess }: ReleaseFund
 
   const getStatusBadge = (allocation) => {
     if (allocation.isConfirmed && parseFloat(allocation.releaseAmount) > 0) {
-      return <Badge className="bg-green-50 text-green-700 border-green-200">âœ“ Confirmed</Badge>;
+      return <Badge className="bg-green-50 text-green-700 border-green-200 flex items-center gap-1">
+        <Check className="h-3 w-3" />
+        Confirmed
+      </Badge>;
     }
     if (parseFloat(allocation.releaseAmount) > 0) {
       return <Badge className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
@@ -415,8 +418,9 @@ const ReleaseFundsHeadwise = ({ open, onClose, project, onSuccess }: ReleaseFund
                   className="text-lg font-semibold"
                 />
                 {totalReleaseAmount && parseFloat(totalReleaseAmount) > getAvailableToRelease() && (
-                  <p className="text-xs text-red-600 mt-2 font-medium">
-                    âš  Exceeds available balance of ₹{getAvailableToRelease().toLocaleString("en-IN")}
+                  <p className="text-xs text-red-600 mt-2 font-medium flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Exceeds available balance of ₹{getAvailableToRelease().toLocaleString("en-IN")}
                   </p>
                 )}
                 {totalReleaseAmount && parseFloat(totalReleaseAmount) > 0 && 

@@ -13,7 +13,7 @@
 // Visibility rule: viewer can see remarks from ALL stages BEFORE their position
 //                  but CANNOT see remarks from stages AFTER their position.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FileText, Eye, ExternalLink, Pencil, Lock, CheckCircle2,
   AlertTriangle, Clock, Circle, RotateCcw, ArrowRight,
@@ -131,14 +131,17 @@ const POINT7B_STAGES = new Set(["ar", "dr"]);
 function detectChain(
   amount: number | undefined,
   currentStage: string,
-  status: string,
   history: ApprovalHistoryItem[]
 ): string[] {
-  if (amount !== undefined && amount !== null)
-    return amount > DR_THRESHOLD ? FULL_CHAIN : LOW_CHAIN;
   const drcSet = new Set(["drc_office", "drc_rc", "drc", "director"]);
+  
+  // Rule 1: Amount threshold
+  if (amount !== undefined && amount !== null && amount > DR_THRESHOLD) return FULL_CHAIN;
+  
+  // Rule 2: If it ever touched DRC or is currently at DRC/Director, it's FULL_CHAIN
   if (drcSet.has(currentStage)) return FULL_CHAIN;
-  if (history.some(h => drcSet.has(h.stage))) return FULL_CHAIN;
+  if (history && Array.isArray(history) && history.some(h => drcSet.has(h.stage))) return FULL_CHAIN;
+  
   return LOW_CHAIN;
 }
 
@@ -262,9 +265,16 @@ export const RequestFullDetail = ({ request, viewerStage, onFieldSaved }: Reques
   const history = request.approvalHistory ?? [];
   const chain   = detectChain(request.amount, request.currentStage, request.status, history);
 
-  // Viewer's index in the chain — used to enforce visibility rules
   const viewerIdx  = chain.indexOf(viewerStage);
-  const currentIdx = chain.indexOf(request.currentStage);
+  
+  // Safety: If currentStage isn't in detected chain (should be rare now), 
+  // we fallback to the last valid index or length.
+  let currentIdx = chain.indexOf(request.currentStage);
+  if (currentIdx === -1) {
+    // If it's Director/DRC but chain is LOW, we should have detected FULL. 
+    // If logic failed, we treat currentIdx as 'past the end'.
+    currentIdx = chain.length;
+  }
   const isHighChain = chain.length > 4;
 
   // ── Normalise queries: merge legacy `latestQuery` into `queries` array ──
@@ -299,6 +309,11 @@ export const RequestFullDetail = ({ request, viewerStage, onFieldSaved }: Reques
   const [expVal,   setExpVal]   = useState(request.expenditure ?? "");
   const [saving7b, setSaving7b] = useState(false);
   const [liveExp,  setLiveExp]  = useState(request.expenditure ?? "");
+
+  useEffect(() => {
+    setExpVal(request.expenditure ?? "");
+    setLiveExp(request.expenditure ?? "");
+  }, [request.expenditure]);
 
   // ── File viewer ──
   const handleViewFile = async () => {
@@ -352,16 +367,26 @@ export const RequestFullDetail = ({ request, viewerStage, onFieldSaved }: Reques
   // We now show EVERY movement in the history as its own row (CHRONOLOGICAL)
   // Plus any upcoming stages from the chain that haven't been reached yet.
   
-  const historyRows = history.map((entry, hIdx) => {
+  const historyData = (history && Array.isArray(history)) ? history : [];
+  const historyRows = historyData.map((entry, hIdx) => {
     const stageKey = entry.stage;
     const meta     = STAGE_META[stageKey] ?? { label: stageKey, role: stageKey, color: "bg-slate-100 text-slate-600 border-slate-200", dot: "bg-slate-400" };
     
-    // Visibility: 
-    // - standard approval: same or later stages in chain can see
-    // - special: query/sendback actions are visible to ALL
+    // Visibility Rules:
+    // 1. Director sees EVERYTHING.
+    // 2. PI (viewerIdx 0) sees EVERYTHING (since they raised it, though normally they only see 'submitted').
+    //    Actually, PI should see all summary remarks for transparency, but let's stick to 'next stage' rule.
+    // 3. User at stage X sees remarks from stages <= X.
+    // 4. Special actions (Query / Sent Back) are visible to ALL.
     const isSpecialAction = entry.action === "sent_back" || entry.action === "sendback" || entry.action.includes("query");
     const stageIdxInChain = chain.indexOf(stageKey);
-    const canSeeRemarks   = viewerIdx === -1 || stageIdxInChain <= viewerIdx || isSpecialAction;
+    
+    // Director bypass:
+    const isDirectorViewer = viewerStage === "director";
+    
+    const canSeeRemarks = isDirectorViewer || 
+                          isSpecialAction || 
+                          (viewerIdx !== -1 && stageIdxInChain <= viewerIdx);
     
     const stageRemarks = entry.remarks;
     const stageQueries = (queriesByStage[stageKey] ?? []).filter(q => {
@@ -406,9 +431,9 @@ export const RequestFullDetail = ({ request, viewerStage, onFieldSaved }: Reques
     const activeStageKey = request.currentStage;
     const meta = STAGE_META[activeStageKey];
     // We insert it between history and pending if it's not already the last history item
-    const lastHistoryStage = history.length > 0 ? history[history.length - 1].stage : null;
+    const lastHistoryStage = (history && history.length > 0) ? history[history.length - 1].stage : null;
     
-    if (lastHistoryStage !== activeStageKey || (history.length > 0 && history[history.length-1].action === "sent_back")) {
+    if (lastHistoryStage !== activeStageKey || (history && history.length > 0 && history[history.length-1].action === "sent_back")) {
        // Add an active row
        const activeRow = {
          type: "active" as const,

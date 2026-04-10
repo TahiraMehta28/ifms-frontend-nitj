@@ -112,6 +112,7 @@ const toDetailData = (r: BudgetRequest): RequestDetailData => ({
   currentStage:     r.currentStage,
   status:           r.status,
   approvalHistory:  r.approvalHistory,
+  history:          r.approvalHistory,
 });
 
 // ── Approval Type Read-Only Banner ─────────────────────────────────────────
@@ -854,5 +855,6 @@ const RejectedTable = ({ requests, onView }: { requests: BudgetRequest[]; onView
     </Table>
   </div>
 );
+
 
 export default DRCDashboard;

@@ -125,6 +125,7 @@ const toDetailData = (r: BudgetRequest): RequestDetailData => ({
   currentStage:     r.currentStage,
   status:           r.status,
   approvalHistory:  r.approvalHistory,
+  history:          r.approvalHistory,
 });
 
 const DRDashboard = () => {
@@ -859,5 +860,6 @@ const RejectedTable = ({ requests, onView }: { requests: BudgetRequest[]; onView
     </table>
   </div>
 );
+
 
 export default DRDashboard;

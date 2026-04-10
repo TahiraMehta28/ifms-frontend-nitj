@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ const [coPILists, setCoPILists] = useState({});
     sanctionOrderNo: "",
     nameOfScheme: "",
     piName: "",
-    piEmail: "",
+    piEmail: "pi@ifms.edu",
     department: "",
     totalYears: "",
     totalSanctionedAmount: "",
@@ -98,28 +98,28 @@ const [coPIs, setCoPIs] = useState([
   };
 
   const fetchPIsByDepartment = async (department, index) => {
-  try {
-    const res = await fetch(
-      `[localhost](${import.meta.env.VITE_API_URL}/get-pi.php?department=${encodeURIComponent(department)})`
-    );
-    const data = await res.json();
-    if (data.success) {
-      setCoPILists(prev => ({ ...prev, [index]: data.data }));
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/principal-investigators.php?department=${encodeURIComponent(department)}`
+      );
+      const data = await res.json();
+      if (data.success) {
+        setCoPILists(prev => ({ ...prev, [index]: data.data }));
+      }
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
-  }
-};
-useEffect(() => {
-  if (formData.department) {
-    fetch(`${import.meta.env.VITE_API_URL}/get-pi.php?department=${formData.department}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) setPiList(data.data);
-      })
-      .catch(err => console.error(err));
-  }
-}, [formData.department]);
+  };
+  useEffect(() => {
+    if (formData.department) {
+      fetch(`${import.meta.env.VITE_API_URL}/principal-investigators.php?department=${encodeURIComponent(formData.department)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) setPiList(data.data);
+        })
+        .catch(err => console.error(err));
+    }
+  }, [formData.department]);
 
 
   const fetchProjectHeads = async () => {
@@ -157,16 +157,27 @@ useEffect(() => {
   };
 
   const handleSelectChange = (name, value) => {
-  if (name === "department") {
-    setFormData(prev => ({
-      ...prev,
-      department: value,
-      piName: ""   // reset PI
-    }));
-  } else {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  }
-};
+    if (name === "department") {
+      setFormData(prev => ({
+        ...prev,
+        department: value,
+        piName: ""   // reset PI
+      }));
+    } else {
+      setFormData(prev => {
+        const newData = { ...prev, [name]: value };
+        if (name === "piName") {
+          const selectedPI = piList.find(p => p.name === value);
+          if (selectedPI && selectedPI.email) {
+            newData.piEmail = selectedPI.email;
+          } else {
+            newData.piEmail = "pi@ifms.edu"; // Default fallback
+          }
+        }
+        return newData;
+      });
+    }
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -220,6 +231,18 @@ useEffect(() => {
       return;
     }
 
+    const otherHeadsSum = allocations
+      .filter(a => a.id !== id)
+      .reduce((sum, a) => sum + (parseFloat(a.sanctionedAmount) || 0), 0);
+    
+    const newTotal = otherHeadsSum + parseFloat(allocation.sanctionedAmount);
+    const sanctioned = parseFloat(formData.totalSanctionedAmount) || 0;
+
+    if (newTotal > sanctioned + 0.01) {
+      alert(`The sum of allocations (₹${newTotal.toLocaleString("en-IN")}) would exceed the total sanctioned amount (₹${sanctioned.toLocaleString("en-IN")}). Please adjust the amount or sync the total.`);
+      return;
+    }
+
     setAllocations(prev =>
       prev.map(alloc =>
         alloc.id === id ? { ...alloc, isConfirmed: true } : alloc
@@ -242,6 +265,19 @@ useEffect(() => {
       alert("Please enter a valid amount");
       return;
     }
+
+    const otherHeadsSum = allocations
+      .filter(a => a.id !== id)
+      .reduce((sum, a) => sum + (parseFloat(a.sanctionedAmount) || 0), 0);
+    
+    const newTotal = otherHeadsSum + parseFloat(allocation.sanctionedAmount);
+    const sanctioned = parseFloat(formData.totalSanctionedAmount) || 0;
+
+    if (newTotal > sanctioned + 0.01) {
+      alert(`The sum of allocations (₹${newTotal.toLocaleString("en-IN")}) exceeds the total sanctioned amount (₹${sanctioned.toLocaleString("en-IN")}).`);
+      return;
+    }
+
     setEditingAllocationId(null);
   };
 
@@ -259,6 +295,14 @@ useEffect(() => {
     const total = parseFloat(formData.totalSanctionedAmount) || 0;
     const allocated = calculateTotalAllocated();
     return total - allocated;
+  };
+
+  const syncTotalWithAllocations = () => {
+    const totalAllocated = calculateTotalAllocated();
+    setFormData(prev => ({
+      ...prev,
+      totalSanctionedAmount: totalAllocated.toString()
+    }));
   };
 
   const handleGPEdit = () => {
@@ -279,6 +323,71 @@ useEffect(() => {
     // Reset to auto-generated number
     setFormData(prev => ({ ...prev, gpNumber: nextGPNumber }));
     setIsEditingGP(false);
+  };
+
+  const loadTestData = () => {
+    const testPI = "Dr. Arpan Saini";
+    const testDept = "Computer Science";
+    
+    // 1. Set basic form data
+    setFormData(prev => ({
+      ...prev,
+      modeOfProject: "govt-funded",
+      projectName: "AI-Driven Smart Campus Optimization",
+      projectAgencyName: "Ministry of Education (MoE)",
+      sanctionOrderNo: "NITJ/SR/2026/042",
+      nameOfScheme: "Design and Innovation Center (DIC)",
+      department: testDept,
+      piName: testPI,
+      piEmail: "pi@ifms.edu",
+      totalSanctionedAmount: "1500000",
+    }));
+
+    // 2. Set Dates (current year to 3 years later)
+    const start = new Date();
+    const end = new Date();
+    end.setFullYear(start.getFullYear() + 3);
+    setStartDate(start);
+    setEndDate(end);
+
+    // 3. Set Co-PIs
+    setAddCoPI(true);
+    setCoPIs([
+      { department: "Electrical Engineering", name: "Dr. RK Sharma" }
+    ]);
+
+    // 4. Set Allocations from Project Heads
+    if (projectHeads.length > 0) {
+      const testAllocations = [
+        {
+          id: Date.now() + 1,
+          headId: projectHeads.find(h => h.name === "Consumables")?.id || "1",
+          headName: "Consumables",
+          headType: "recurring",
+          sanctionedAmount: "500000",
+          isConfirmed: true,
+        },
+        {
+          id: Date.now() + 2,
+          headId: projectHeads.find(h => h.name === "Equipment")?.id || "2",
+          headName: "Equipment",
+          headType: "non-recurring",
+          sanctionedAmount: "800000",
+          isConfirmed: true,
+        },
+        {
+          id: Date.now() + 3,
+          headId: projectHeads.find(h => h.name === "Travel")?.id || "3",
+          headName: "Travel",
+          headType: "recurring",
+          sanctionedAmount: "200000",
+          isConfirmed: true,
+        }
+      ];
+      setAllocations(testAllocations);
+    }
+
+    alert("Test data loaded! Please upload a sample PDF and click Submit.");
   };
 
   const handleSubmit = async (e) => {
@@ -392,11 +501,22 @@ useEffect(() => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6 pb-12">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-100">
-          <h1 className="text-3xl font-bold text-gray-900">Create Project</h1>
-          <p className="text-gray-600 mt-2">
-            Register a new research project and assign GP number
-          </p>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-100 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Create Project</h1>
+            <p className="text-gray-600 mt-2">
+              Register a new research project and assign GP number
+            </p>
+          </div>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={loadTestData}
+            className="border-amber-500 text-amber-700 hover:bg-amber-50 gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Fill Test Data
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -779,9 +899,21 @@ useEffect(() => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="totalSanctionedAmount" className="text-sm font-medium text-gray-700">
-                    Total Sanctioned Amount <span className="text-red-500">*</span>
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="totalSanctionedAmount" className="text-sm font-medium text-gray-700">
+                      Total Sanctioned Amount <span className="text-red-500">*</span>
+                    </Label>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={syncTotalWithAllocations}
+                      className="h-7 text-[10px] text-blue-600 hover:text-blue-700 p-0"
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Sync with Heads
+                    </Button>
+                  </div>
                   <Input
                     id="totalSanctionedAmount"
                     name="totalSanctionedAmount"
@@ -941,8 +1073,9 @@ useEffect(() => {
                             {allocation.headType}
                           </span>
                           {allocation.isConfirmed && (
-                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">
-                              âœ“ Confirmed
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700 flex items-center gap-1">
+                              <Check className="h-3 w-3" />
+                              Confirmed
                             </span>
                           )}
                         </div>

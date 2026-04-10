@@ -111,6 +111,7 @@ const toDetailData = (r: BudgetRequest): RequestDetailData => ({
   currentStage:     r.currentStage,
   status:           r.status,
   approvalHistory:  r.approvalHistory,
+  history:          r.approvalHistory,
 });
 
 // ── Approval Type Selector ──────────────────────────────────────────────────
@@ -171,13 +172,16 @@ const ApprovalTypeSelector = ({
   </div>
 );
 
+
+
 // ═══════════════════════════════════════════════════════════════════════════════
 const DRCRCDashboard = () => {
   const navigate = useNavigate();
   const [pending,      setPending]      = useState<BudgetRequest[]>([]);
   const [completed,    setCompleted]    = useState<BudgetRequest[]>([]);
   const [forwardedRequests, setForwardedRequests] = useState<BudgetRequest[]>([]);
-  const [loading,      setLoading]      = useState(true);
+  const [sentBackRequests,  setSentBackRequests]  = useState<BudgetRequest[]>([]);
+  const [loading,           setLoading]           = useState(true);
   const [sel,          setSel]          = useState<BudgetRequest | null>(null);
   const [open,         setOpen]         = useState(false);
   const [remarks,      setRemarks]      = useState("");
@@ -197,6 +201,8 @@ const DRCRCDashboard = () => {
       const d2 = await r2.json(); setCompleted(d2.data || []);
       const r3 = await fetch(`${API}/get-requests-by-stage.php?stage=drc_rc&type=forwarded&summary=1&limit=50`);
       const d3 = await r3.json(); setForwardedRequests(d3.data || []);
+      const r4 = await fetch(`${API}/get-requests-by-stage.php?stage=drc_rc&type=sentback&summary=1&limit=50`);
+      const d4 = await r4.json(); setSentBackRequests(d4.data || []);
     } catch { toast.error("Failed to load"); }
     finally { setLoading(false); }
   };
@@ -706,6 +712,13 @@ const AT = ({ requests, onView, onCert }: {
         ))}
       </tbody>
     </table>
+  </div>
+);
+
+const EmptyState = ({ icon, message }: { icon: React.ReactNode; message: string }) => (
+  <div className="flex flex-col items-center justify-center py-14 text-slate-400">
+    <div className="mb-3 opacity-30">{icon}</div>
+    <p className="text-sm">{message}</p>
   </div>
 );
 

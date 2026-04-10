@@ -63,7 +63,7 @@ interface BudgetRequest {
   rejectionRemarks?: string;
   rejectedAt?: string;
   projectId: string;
-  actualExpenditure?: number;
+  actual_exp?: number;
 }
 
 
@@ -79,7 +79,7 @@ interface Project {
   totalSanctionedAmount: number;
   totalReleasedAmount: number;
   amountBookedByPI: number;
-  actualExpenditure: number;
+  actual_exp: number;
   bankDetails?: string;
   status: string;
 }
@@ -258,14 +258,14 @@ const DADashboard = () => {
 
   const handleConfirm = async (req: BudgetRequest, valueOverride?: string) => {
     const value = valueOverride ?? expInput;
-    if (value === "" && !req.actualExpenditure) return;
-    const amount = value !== "" ? parseFloat(value) : req.actualExpenditure!;
+    if (value === "" && !req.actual_exp) return;
+    const amount = value !== "" ? parseFloat(value) : req.actual_exp!;
     try {
       setSavingExp(true);
       const r = await fetch(`${API}/update-actual-expenditure.php`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId: req.id, projectId: req.projectId, actualExpenditure: amount }),
+        body: JSON.stringify({ requestId: req.id, projectId: req.projectId, actual_exp: amount }),
       });
       const d = await r.json();
       if (!d.success) throw new Error(d.message);
@@ -277,7 +277,7 @@ const DADashboard = () => {
 
   const handleUnlockForEdit = (req: BudgetRequest) => {
     setEditingId(req.id);
-    setExpInput(String(req.actualExpenditure || ""));
+    setExpInput(String(req.actual_exp || ""));
   };
 
   const processCount     = myTurnRequests.length;
@@ -402,7 +402,7 @@ const DADashboard = () => {
                       <TableBody>
                         {filteredApprovedRequests.map((req, i) => {
                           const booked    = parseFloat(String(req.amount || 0));
-                          const actual    = parseFloat(String(req.actualExpenditure || 0));
+                          const actual    = parseFloat(String(req.actual_exp || 0));
                           const isEditing = editingId === req.id;
                           const isConfirmed = actual > 0 && !isEditing;
                           const isDone      = actual > 0;
@@ -465,10 +465,10 @@ const DADashboard = () => {
                   <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
                     <p className="text-xs text-slate-500">
                       Showing <span className="font-semibold">{filteredApprovedRequests.length}</span> processed requests &nbsp;·&nbsp;
-                      <span className="text-slate-700 font-semibold">{filteredApprovedRequests.filter(r => (r.actualExpenditure ?? 0) > 0).length} confirmed</span> &nbsp;·&nbsp;
-                      <span className="text-slate-500 font-semibold">{filteredApprovedRequests.filter(r => !(r.actualExpenditure ?? 0)).length} pending entry</span>
+                      <span className="text-slate-700 font-semibold">{filteredApprovedRequests.filter(r => (r.actual_exp ?? 0) > 0).length} confirmed</span> &nbsp;·&nbsp;
+                      <span className="text-slate-500 font-semibold">{filteredApprovedRequests.filter(r => !(r.actual_exp ?? 0)).length} pending entry</span>
                     </p>
-                    <p className="text-xs text-slate-400">Total actual entered: ₹{fmtINR(filteredApprovedRequests.reduce((s, r) => s + parseFloat(String(r.actualExpenditure || 0)), 0))}</p>
+                    <p className="text-xs text-slate-400">Total actual entered: ₹{fmtINR(filteredApprovedRequests.reduce((s, r) => s + parseFloat(String(r.actual_exp || 0)), 0))}</p>
                   </div>
                 )}
               </CardContent>

@@ -1,4 +1,4 @@
-﻿// BookedAmountDialog.tsx  v4
+// BookedAmountDialog.tsx  v4
 // Shows booking register grouped by fund release installment.
 // Each release = separate collapsible section with its own heads/requests.
 // Grand total booked never exceeds totalReleasedAmount.
@@ -18,9 +18,9 @@ interface RequestRow {
   purpose: string;
   invoiceNumber: string;
   bookedAmount: number;
-  actualAmount: number;
+  actual_exp: number;
   effectiveAmount: number;
-  isSettled: boolean;
+  status: string;
   createdAt: string | null;
   runningTotal?: number;
 }
@@ -30,7 +30,7 @@ interface HeadRow {
   headName: string;
   headType: string;
   bookedAmount: number;
-  actualExpenditure: number;
+  actual_exp: number;
   requests: RequestRow[];
 }
 
@@ -53,7 +53,7 @@ export interface BookedDialogProject {
   department: string;
   totalReleasedAmount: number;
   amountBookedByPI: number;
-  actualExpenditure: number;
+  actual_exp: number;
   availableBalance: number;
 }
 
@@ -281,7 +281,7 @@ export const BookedAmountDialog = ({ project }: Props) => {
                                   <thead>
                                     <tr className="border-b border-slate-100">
                                       {["#", "Ref. No.", "Purpose", "Invoice", "Date",
-                                        "Booked", "Actual", "Effective", "Cumul."].map(h => (
+                                        "Booked", "Actual", "Effective", "Cumul.", "Status"].map(h => (
                                         <th key={h} className="text-left text-[8px] font-bold uppercase tracking-widest text-slate-400 px-3 py-2 whitespace-nowrap">
                                           {h}
                                         </th>
@@ -290,43 +290,59 @@ export const BookedAmountDialog = ({ project }: Props) => {
                                   </thead>
                                   <tbody>
                                     {head.requests.map((req, ri) => (
-                                      <tr key={req.requestId} className={`border-b border-slate-50 transition-colors ${req.isSettled ? "bg-emerald-50/30" : "hover:bg-slate-50"}`}>
+                                      <tr key={req.requestId} className={`border-b border-slate-50 transition-colors ${req.status === 'rejected' ? "bg-red-50/50 opacity-70" : req.isSettled ? "bg-emerald-50/30" : "hover:bg-slate-50"}`}>
                                         <td className="px-3 py-2.5 text-xs text-slate-400 font-mono">{ri + 1}</td>
                                         <td className="px-3 py-2.5 text-xs font-mono font-semibold text-slate-700 whitespace-nowrap">
-                                          {req.requestNumber}
+                                          <div className="flex flex-col">
+                                            <span className={req.status === 'rejected' ? "line-through text-slate-400" : ""}>{req.requestNumber}</span>
+                                          </div>
                                         </td>
                                         <td className="px-3 py-2.5 text-xs text-slate-600 max-w-[120px]">
-                                          <span className="line-clamp-1">{req.purpose || "—"}</span>
+                                          <span className={`line-clamp-1 ${req.status === 'rejected' ? "line-through text-slate-400" : ""}`}>{req.purpose || "—"}</span>
                                         </td>
                                         <td className="px-3 py-2.5 text-xs font-mono text-slate-500 whitespace-nowrap">{req.invoiceNumber || "—"}</td>
                                         <td className="px-3 py-2.5 text-xs text-slate-400 whitespace-nowrap">{fmtDate(req.createdAt)}</td>
                                         {/* Booked */}
                                         <td className="px-3 py-2.5 text-xs font-bold font-mono text-slate-600 text-right whitespace-nowrap">
-                                          {fmtINR(req.bookedAmount)}
+                                          <span className={req.status === 'rejected' ? "line-through text-slate-300" : ""}>{fmtINR(req.bookedAmount)}</span>
                                         </td>
                                         {/* Actual */}
                                         <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                                          {req.isSettled
-                                            ? <span className="text-sm font-bold font-mono text-emerald-700">{fmtINR(req.actualAmount)}</span>
-                                            : <span className="text-xs text-amber-500 italic">Pending DA</span>
-                                          }
+                                          {req.status === 'rejected' ? (
+                                            <span className="text-[10px] font-bold text-red-400">REJECTED</span>
+                                          ) : req.isSettled ? (
+                                            <span className="text-sm font-bold font-mono text-emerald-700">{fmtINR(req.actual_exp)}</span>
+                                          ) : (
+                                            <span className="text-xs text-amber-500 italic">Pending DA</span>
+                                          )}
                                         </td>
                                         {/* Effective */}
                                         <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                                          <span className={`text-sm font-bold font-mono ${req.isSettled ? "text-emerald-700" : "text-slate-800"}`}>
+                                          <span className={`text-sm font-bold font-mono ${req.status === 'rejected' ? "text-slate-300 line-through" : req.isSettled ? "text-emerald-700" : "text-slate-800"}`}>
                                             {fmtINR(req.effectiveAmount)}
                                           </span>
-                                          {req.isSettled && req.bookedAmount !== req.actualAmount && (
-                                            <span className="ml-1 text-[8px] text-emerald-600">
-                                              →“{fmtINR(req.bookedAmount - req.actualAmount)} returned
-                                            </span>
-                                          )}
                                         </td>
                                         {/* Cumulative */}
                                         <td className="px-3 py-2.5 whitespace-nowrap">
                                           <span className="text-sm font-bold font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                                             {fmtINR(req.runningTotal ?? 0)}
                                           </span>
+                                        </td>
+                                        {/* Status Column */}
+                                        <td className="px-3 py-2.5 whitespace-nowrap">
+                                          {req.status === 'rejected' ? (
+                                            <span className="inline-flex items-center gap-1 text-[9px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded uppercase tracking-tighter">
+                                              Rejected
+                                            </span>
+                                          ) : req.isSettled ? (
+                                            <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded uppercase tracking-tighter">
+                                              Settled
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1 text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded uppercase tracking-tighter">
+                                              Booking
+                                            </span>
+                                          )}
                                         </td>
                                       </tr>
                                     ))}

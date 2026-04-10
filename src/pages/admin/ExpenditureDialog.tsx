@@ -1,4 +1,4 @@
-﻿// ExpenditureDialog.tsx  v3
+// ExpenditureDialog.tsx  v3
 // Shows expenditure register grouped by fund release installment.
 // Each release = collapsible section → heads → per-request rows with actual/variance.
 // Grand total booked never exceeds totalReleasedAmount.
@@ -17,7 +17,7 @@ interface RequestRow {
   purpose: string;
   invoiceNumber: string;
   bookedAmount: number;
-  actualExpenditure: number;
+  actual_exp: number;
   effectiveAmount: number;
   expenditureFilled: boolean;
   isSettled: boolean;
@@ -31,7 +31,7 @@ interface HeadRow {
   headType: string;
   bookedAmount: number;
   rawBookedAmount: number;
-  actualExpenditure: number;
+  actual_exp: number;
   approvedCount: number;
   filledCount: number;
   allFilled: boolean;
@@ -61,7 +61,7 @@ export interface ProjectForExpDialog {
   totalSanctionedAmount: number;
   totalReleasedAmount: number;
   amountBookedByPI: number;
-  actualExpenditure: number;
+  actual_exp: number;
 }
 
 interface Props { project: ProjectForExpDialog; }
@@ -110,7 +110,7 @@ export const ExpenditureDialog = ({ project }: Props) => {
   const sanctioned = apiData?.totalSanctionedAmount ?? project.totalSanctionedAmount ?? 0;
   const released   = apiData?.totalReleasedAmount   ?? project.totalReleasedAmount   ?? 0;
   const booked     = apiData?.amountBookedByPI      ?? project.amountBookedByPI      ?? 0;
-  const actual     = apiData?.actualExpenditure     ?? project.actualExpenditure     ?? 0;
+  const actual     = apiData?.actual_exp     ?? project.actual_exp     ?? 0;
   const remaining  = Math.max(0, released - booked);
   const approved   = apiData?.approvedRequestCount   ?? 0;
   const filled     = apiData?.filledExpenditureCount ?? 0;
@@ -126,7 +126,7 @@ export const ExpenditureDialog = ({ project }: Props) => {
       {/* Trigger */}
       <button onClick={handleOpen} className="group inline-flex flex-col items-end gap-0.5 cursor-pointer">
         <span className="text-sm font-semibold font-mono text-slate-800 group-hover:text-slate-500 transition-colors">
-          {(project.actualExpenditure ?? 0).toLocaleString("en-IN")}
+          {(project.actual_exp ?? 0).toLocaleString("en-IN")}
         </span>
         <span className="text-[9px] font-medium text-slate-400 group-hover:text-slate-600 underline underline-offset-2">
           View Detail
@@ -285,7 +285,7 @@ export const ExpenditureDialog = ({ project }: Props) => {
                         {rel.heads.map((head, hi) => {
                           const headKey  = `${rel.releaseId}__${head.headId}`;
                           const hExpanded = expandedHeads[headKey] !== false;
-                          const variance  = head.bookedAmount - head.actualExpenditure;
+                          const variance  = head.bookedAmount - head.actual_exp;
 
                           return (
                             <div key={head.headId}>
@@ -309,7 +309,7 @@ export const ExpenditureDialog = ({ project }: Props) => {
                                 <div className="flex items-center gap-6 shrink-0">
                                   {[
                                     { label: "Booked",    v: head.bookedAmount,        cls: "text-slate-700" },
-                                    { label: "Actual",    v: head.actualExpenditure,   cls: "text-emerald-700 font-bold" },
+                                    { label: "Actual",    v: head.actual_exp,   cls: "text-emerald-700 font-bold" },
                                     { label: "Variance",  v: variance, prefix: variance >= 0 ? "+" : "",
                                       cls: variance > 0 ? "text-emerald-600" : variance < 0 ? "text-red-600" : "text-slate-400" },
                                   ].map(s => (
@@ -348,7 +348,7 @@ export const ExpenditureDialog = ({ project }: Props) => {
                                   </thead>
                                   <tbody>
                                     {head.requests.map((req, ri) => {
-                                      const v = req.bookedAmount - req.actualExpenditure;
+                                      const v = req.bookedAmount - req.actual_exp;
                                       return (
                                         <tr key={req.requestId} className={`border-b border-slate-50 transition-colors ${req.isSettled ? "bg-emerald-50/30" : "hover:bg-slate-50"}`}>
                                           <td className="px-3 py-2.5 text-xs text-slate-400 font-mono">{ri + 1}</td>
@@ -365,7 +365,7 @@ export const ExpenditureDialog = ({ project }: Props) => {
                                           {/* Actual */}
                                           <td className="px-3 py-2.5 text-right whitespace-nowrap">
                                             {req.expenditureFilled
-                                              ? <span className="text-sm font-bold font-mono text-emerald-700">{fmtINR(req.actualExpenditure)}</span>
+                                              ? <span className="text-sm font-bold font-mono text-emerald-700">{fmtINR(req.actual_exp)}</span>
                                               : <span className="text-xs text-amber-500 italic">Pending DA</span>
                                             }
                                           </td>
@@ -409,7 +409,7 @@ export const ExpenditureDialog = ({ project }: Props) => {
                                           {fmtINR(head.requests.reduce((s, r) => s + r.bookedAmount, 0))}
                                         </td>
                                         <td className="px-3 py-2 text-xs font-black font-mono text-emerald-700 text-right">
-                                          {fmtINR(head.actualExpenditure)}
+                                          {fmtINR(head.actual_exp)}
                                         </td>
                                         <td className="px-3 py-2 text-xs font-black font-mono text-right">
                                           <span className={variance >= 0 ? "text-emerald-700" : "text-red-600"}>

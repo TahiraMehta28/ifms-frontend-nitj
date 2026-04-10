@@ -16,6 +16,8 @@ import { Search, Clock, Loader2, Lock, ArrowRight, CornerUpLeft } from "lucide-r
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
+const API = import.meta.env.VITE_API_URL;
+
 interface BudgetRequest {
   id: string;
   requestNumber?: string;
@@ -61,7 +63,7 @@ type ActionType = "forward" | "sendback" | null;
 const formatDate   = (d: string) => !d ? "--" : new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 const formatAmount = (n: number) => `Rs.${(n / 100000).toFixed(2)}L`;
 const canAct = (r: BudgetRequest) =>
-  r.currentStage === "drc_office" && r.status === "dr_approved";
+  r.currentStage === "drc_office" && (r.status === "dr_approved" || r.status === "sent_back_to_drc_office");
 
 const toDetailData = (r: BudgetRequest): RequestDetailData => ({
   id:               r.id,
@@ -98,12 +100,14 @@ const toDetailData = (r: BudgetRequest): RequestDetailData => ({
   currentStage:     r.currentStage,         // ✅ required for timeline
   status:           r.status,               // ✅ required for timeline
   approvalHistory:  r.approvalHistory,      // ✅ required for timeline
+  history:          r.approvalHistory,      // ✅ for RequestFullDetailView dynamic timeline
 });
 
 const DRCOfficeDashboard = () => {
   const [pendingRequests,   setPendingRequests]   = useState<BudgetRequest[]>([]);
   const [completedRequests, setCompletedRequests] = useState<BudgetRequest[]>([]);
   const [forwardedRequests, setForwardedRequests] = useState<BudgetRequest[]>([]);
+  const [sentBackRequests,  setSentBackRequests]  = useState<BudgetRequest[]>([]);
   const [loading,           setLoading]           = useState(true);
   const [selectedRequest,   setSelectedRequest]   = useState<BudgetRequest | null>(null);
   const [dialogOpen,        setDialogOpen]        = useState(false);
@@ -123,6 +127,8 @@ const DRCOfficeDashboard = () => {
       const d2 = await r2.json(); setCompletedRequests(d2.data || []);
       const r3 = await fetch(`${import.meta.env.VITE_API_URL}/get-requests-by-stage.php?stage=drc_office&type=forwarded&summary=1&limit=50`);
       const d3 = await r3.json(); setForwardedRequests(d3.data || []);
+      const r4 = await fetch(`${import.meta.env.VITE_API_URL}/get-requests-by-stage.php?stage=drc_office&type=sentback&summary=1&limit=50`);
+      const d4 = await r4.json(); setSentBackRequests(d4.data || []);
     } catch { toast.error("Failed to load requests"); }
     finally { setLoading(false); }
   };
@@ -183,7 +189,7 @@ const DRCOfficeDashboard = () => {
   };
 
   const forwarded = forwardedRequests;
-  const sentBack  = completedRequests.filter(r => r.status === "sent_back_to_dr");
+  const sentBack  = sentBackRequests;
 
   return (
     <Layout>
@@ -298,14 +304,7 @@ const DRCOfficeDashboard = () => {
                 }}
               />
 
-              <ApprovalTimeline
-                approvalHistory={selectedRequest.approvalHistory}
-                currentStage={selectedRequest.currentStage}
-                status={selectedRequest.status}
-                piName={selectedRequest.piName}
-                createdAt={selectedRequest.createdAt}
-                amount={selectedRequest.amount}
-              />
+
 
               {!pendingAction && canAct(selectedRequest) && (
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
@@ -458,5 +457,6 @@ const SentBackTable = ({ requests, onView }: { requests: BudgetRequest[]; onView
     </table>
   </div>
 );
+
 
 export default DRCOfficeDashboard;
